@@ -204,94 +204,63 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+    // --- 1. CONFIGURAÇÃO (Use os dados das imagens c974bb e c9dd22) ---
+    const SUPABASE_URL = 'COLE_AQUI_A_URL_DO_DATA_API';
+    const SUPABASE_KEY = 'COLE_AQUI_A_PUBLISHABLE_KEY';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let guests = [];
+    let activeTab = 'noiva';
+
     function formatarNome(str) {
         if (!str) return "";
         return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 
-    const KEY_DB = 'wedding_final_v6_num';
-    let guests = JSON.parse(localStorage.getItem(KEY_DB)) || [];
-
-    let activeTab = 'noiva';
-    let chartSide, chartProfile;
-
-    function save() {
-        localStorage.setItem(KEY_DB, JSON.stringify(guests));
-        render();
+    // --- 2. BANCO DE DADOS (Puxar, Salvar e Deletar) ---
+    async function fetchGuests() {
+        const { data, error } = await _supabase.from('convidados').select('*');
+        if (data) {
+            guests = data;
+            render();
+        }
     }
 
-    function addGuest() {
-        const nome = document.getElementById('addNome').value;
-        const vinculoSelect = document.getElementById('addVinculo').value;
-        if(!nome) return;
-        guests.push({
-            id: Date.now(),
-            nome: formatarNome(nome),
+    async function addGuest() {
+        const nomeInput = document.getElementById('addNome');
+        if(!nomeInput.value) return;
+
+        const newGuest = {
+            nome: formatarNome(nomeInput.value),
             lado: document.getElementById('addLado').value,
             tipo: document.getElementById('addTipo').value,
-            vinculo: vinculoSelect,
+            vinculo: document.getElementById('addVinculo').value,
             confirmado: false
-        });
-        document.getElementById('addNome').value = '';
-        save();
-    }
+        };
 
-    function toggleConfirm(id) {
-        const g = guests.find(x => x.id === id);
-        if(g) { g.confirmado = !g.confirmado; save(); }
-    }
-
-    function addChild(parentName, lado) {
-        const childName = prompt(`Nome do filho(a) de ${parentName}:`);
-        if(childName) {
-            guests.push({
-                id: Date.now() + 1,
-                nome: formatarNome(childName),
-                lado: lado,
-                tipo: 'criança',
-                vinculo: `Filho(a) de ${parentName}`, 
-                confirmado: false
-            });
-            save();
+        const { error } = await _supabase.from('convidados').insert([newGuest]);
+        if (!error) {
+            nomeInput.value = '';
+            fetchGuests();
         }
     }
 
-    function editGuest(id) {
-        const g = guests.find(x => x.id === id);
-        document.getElementById('editId').value = g.id;
-        document.getElementById('editNome').value = g.nome;
-        document.getElementById('editLado').value = g.lado;
-        document.getElementById('editTipo').value = g.tipo;
-        
-        const select = document.getElementById('editVinculo');
-        const v = g.vinculo ? g.vinculo.toLowerCase() : '';
-        
-        if (v.includes('filho(a) de')) {
-             if(![...select.options].some(o => o.value === g.vinculo)) {
-                 const opt = document.createElement('option');
-                 opt.value = g.vinculo;
-                 opt.text = g.vinculo;
-                 select.add(opt);
-             }
+    async function toggleConfirm(id, currentStatus) {
+        await _supabase.from('convidados').update({ confirmado: !currentStatus }).eq('id', id);
+        fetchGuests();
+    }
+
+    async function deleteGuest(id) {
+        if(confirm("Deseja remover este convidado da lista?")) {
+            await _supabase.from('convidados').delete().eq('id', id);
+            fetchGuests();
         }
-        select.value = g.vinculo;
-        document.getElementById('modal').style.display = 'flex';
     }
 
-    function saveEdit() {
-        const id = parseFloat(document.getElementById('editId').value);
-        const g = guests.find(x => x.id === id);
-        g.nome = formatarNome(document.getElementById('editNome').value);
-        g.lado = document.getElementById('editLado').value;
-        g.tipo = document.getElementById('editTipo').value;
-        g.vinculo = document.getElementById('editVinculo').value;
-        document.getElementById('modal').style.display = 'none';
-        save();
-    }
-
-    function deleteGuest(id) { if(confirm("Remover da lista?")) { guests = guests.filter(g => g.id !== id); save(); } }
-
+    // --- 3. PARTE VISUAL (Mantendo o estilo do seu arquivo original) ---
     function setTab(lado) {
         activeTab = lado;
         document.getElementById('btnNoiva').className = lado === 'noiva' ? 'tab active-noiva' : 'tab';
@@ -310,27 +279,24 @@
         );
         
         filtered.forEach((g, index) => {
-            const v = g.vinculo ? g.vinculo.toLowerCase() : '';
+            const badgeClass = g.tipo === 'criança' ? 'badge-crianca' : 'badge-adulto';
+            const checkIcon = g.confirmado ? '<span style="color: var(--check-green); margin-left: 10px; font-weight: bold;">✔</span>' : '';
             
             let rowClass = '';
+            const v = g.vinculo ? g.vinculo.toLowerCase() : '';
             if (v === 'padrinho' || v === 'madrinha') rowClass = 'row-padrinho';
             else if (v === 'músico') rowClass = 'row-musico';
             else if (v === 'daminha') rowClass = 'row-daminha';
             else if (v === 'pajem') rowClass = 'row-pajem';
-            
-            const checkIcon = g.confirmado ? '<span style="color: var(--check-green); margin-left: 10px; font-weight: bold;">✔</span>' : '';
-            const badgeClass = g.tipo === 'criança' ? 'badge-crianca' : 'badge-adulto';
 
             table.innerHTML += `
                 <tr class="${rowClass}">
-                    <td class="confirm-col"><input type="checkbox" ${g.confirmado ? 'checked' : ''} onchange="toggleConfirm(${g.id})"></td>
+                    <td class="confirm-col"><input type="checkbox" ${g.confirmado ? 'checked' : ''} onchange="toggleConfirm(${g.id}, ${g.confirmado})"></td>
                     <td class="index-col">${index + 1}</td>
                     <td class="name-cell">${g.nome}${checkIcon}</td>
                     <td><span class="badge ${badgeClass}">${g.tipo}</span></td>
                     <td class="info-cell">${g.vinculo || '—'}</td>
                     <td style="text-align: right;">
-                        <button class="btn-action" onclick="addChild('${g.nome}', '${g.lado}')">+ Filho</button>
-                        <button class="btn-action" onclick="editGuest(${g.id})">Editar</button>
                         <button class="btn-action btn-del" onclick="deleteGuest(${g.id})">Excluir</button>
                     </td>
                 </tr>
@@ -353,13 +319,10 @@
 
         const perc = guests.length > 0 ? (nConfirmados / guests.length) * 100 : 0;
         document.getElementById('progBar').style.width = perc + '%';
-
-        if(chartSide) chartSide.destroy();
-        if(chartProfile) chartProfile.destroy();
-        chartSide = new Chart(document.getElementById('chartLado'), { type: 'pie', data: { labels: ['Noiva', 'Noivo'], datasets: [{ data: [nNoiva, nNoivo], backgroundColor: ['#9b6b66', '#5e748e'], borderWeight: 0 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
-        chartProfile = new Chart(document.getElementById('chartTipo'), { type: 'doughnut', data: { labels: ['Adultos', 'Crianças'], datasets: [{ data: [guests.length - nKids, nKids], backgroundColor: ['#2d2d2d', '#b59a7d'], borderWeight: 0 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
     }
-    render();
+
+    window.onload = fetchGuests;
 </script>
 </body>
 </html>
+
