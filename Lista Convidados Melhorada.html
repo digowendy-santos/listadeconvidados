@@ -391,7 +391,53 @@
       document.getElementById('campo-nome-convidado').value = '';
     }
   }
+    // 4. Função para buscar os nomes no Supabase e mostrar na tabela
+async function carregarLista() {
+  const { data, error } = await _supabase
+    .from('convidados')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (data) {
+    // Localiza a tabela onde os nomes devem aparecer (linha 163 da sua imagem)
+    const corpoTabela = document.querySelector('tbody'); 
+    corpoTabela.innerHTML = ''; 
+
+    data.forEach((convidado, index) => {
+      corpoTabela.innerHTML += `
+        <tr>
+          <td></td>
+          <td>${index + 1}</td>
+          <td>${convidado.nome}</td>
+          <td>-</td>
+          <td>-</td>
+          <td style="text-align: right;">
+            <button onclick="removerConvidado(${convidado.id})" style="background:none; border:none; cursor:pointer; font-size: 1.2rem;">❌</button>
+          </td>
+        </tr>
+      `;
+    });
+  }
+}
+
+// Faz a lista aparecer assim que a página carrega
+window.onload = carregarLista;
+
+// Função para apagar um nome se sua noiva precisar corrigir algo
+async function removerConvidado(id) {
+  if (confirm("Deseja remover este convidado da lista?")) {
+    const { error } = await _supabase
+      .from('convidados')
+      .delete()
+      .eq('id', id);
+
+    if (!error) {
+      carregarLista(); // Atualiza a tela após apagar
+    }
+  }
+}
 </script>
 </body>
 
 </html>
+
