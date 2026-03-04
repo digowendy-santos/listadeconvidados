@@ -207,33 +207,34 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    // --- 1. CONFIGURAÇÃO (Use os dados das imagens c974bb e c9dd22) ---
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
     const SUPABASE_URL = 'https://vjzlfwmpalqmnkccvidj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_Z8QxOPm2rGdjHZpXqFjosg_cuz25iRE';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     let guests = [];
     let activeTab = 'noiva';
+    let myChart = null;
 
-    function formatarNome(str) {
-        if (!str) return "";
-        return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    }
-
-    // --- 2. BANCO DE DADOS (Puxar, Salvar e Deletar) ---
+    // 1. CARREGAR DADOS
     async function fetchGuests() {
-        const { data, error } = await _supabase.from('convidados').select('*');
+        const { data, error } = await _supabase.from('convidados').select('*').order('nome', { ascending: true });
         if (data) {
             guests = data;
             render();
         }
     }
 
+    // 2. ADICIONAR CONVIDADO NORMAL
     async function addGuest() {
         const nomeInput = document.getElementById('addNome');
         if(!nomeInput.value) return;
 
         const newGuest = {
-            nome: formatarNome(nomeInput.value),
+            nome: nomeInput.value,
             lado: document.getElementById('addLado').value,
             tipo: document.getElementById('addTipo').value,
             vinculo: document.getElementById('addVinculo').value,
@@ -247,19 +248,37 @@
         }
     }
 
+    // 3. FUNÇÃO DE ADICIONAR FILHOS (A que você sentiu falta!)
+    async function addChild(parentName, parentLado) {
+        const childName = prompt(`Nome do filho(a) de ${parentName}:`);
+        if (!childName) return;
+
+        const newChild = {
+            nome: childName,
+            lado: parentLado,
+            tipo: 'criança',
+            vinculo: `Filho(a) de ${parentName}`,
+            confirmado: false
+        };
+
+        const { error } = await _supabase.from('convidados').insert([newChild]);
+        if (!error) fetchGuests();
+    }
+
+    // 4. CONFIRMAR E EXCLUIR
     async function toggleConfirm(id, currentStatus) {
         await _supabase.from('convidados').update({ confirmado: !currentStatus }).eq('id', id);
         fetchGuests();
     }
 
     async function deleteGuest(id) {
-        if(confirm("Deseja remover este convidado da lista?")) {
+        if(confirm("Deseja remover este convidado?")) {
             await _supabase.from('convidados').delete().eq('id', id);
             fetchGuests();
         }
     }
 
-    // --- 3. PARTE VISUAL (Mantendo o estilo do seu arquivo original) ---
+    // 5. RENDERIZAÇÃO E GRÁFICOS
     function setTab(lado) {
         activeTab = lado;
         document.getElementById('btnNoiva').className = lado === 'noiva' ? 'tab active-noiva' : 'tab';
@@ -269,34 +288,23 @@
 
     function render() {
         const table = document.getElementById('tableBody');
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const search = document.getElementById('searchInput').value.toLowerCase();
         table.innerHTML = '';
         
-        const filtered = guests.filter(g => 
-            g.lado === activeTab && 
-            g.nome.toLowerCase().includes(searchTerm)
-        );
+        const filtered = guests.filter(g => g.lado === activeTab && g.nome.toLowerCase().includes(search));
         
         filtered.forEach((g, index) => {
             const badgeClass = g.tipo === 'criança' ? 'badge-crianca' : 'badge-adulto';
-            const checkIcon = g.confirmado ? '<span style="color: var(--check-green); margin-left: 10px; font-weight: bold;">✔</span>' : '';
-            
-            let rowClass = '';
-            const v = g.vinculo ? g.vinculo.toLowerCase() : '';
-            if (v === 'padrinho' || v === 'madrinha') rowClass = 'row-padrinho';
-            else if (v === 'músico') rowClass = 'row-musico';
-            else if (v === 'daminha') rowClass = 'row-daminha';
-            else if (v === 'pajem') rowClass = 'row-pajem';
-
             table.innerHTML += `
-                <tr class="${rowClass}">
+                <tr>
                     <td class="confirm-col"><input type="checkbox" ${g.confirmado ? 'checked' : ''} onchange="toggleConfirm(${g.id}, ${g.confirmado})"></td>
                     <td class="index-col">${index + 1}</td>
-                    <td class="name-cell">${g.nome}${checkIcon}</td>
+                    <td class="name-cell">${g.nome}</td>
                     <td><span class="badge ${badgeClass}">${g.tipo}</span></td>
                     <td class="info-cell">${g.vinculo || '—'}</td>
-                    <td style="text-align: right;">
-                        <button class="btn-action btn-del" onclick="deleteGuest(${g.id})">Excluir</button>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button class="btn-action btn-child" onclick="addChild('${g.nome}', '${g.lado}')" title="Adicionar Filho">👶</button>
+                        <button class="btn-action btn-del" onclick="deleteGuest(${g.id})">🗑️</button>
                     </td>
                 </tr>
             `;
@@ -307,24 +315,37 @@
     function updateStats() {
         const nNoiva = guests.filter(g => g.lado === 'noiva').length;
         const nNoivo = guests.filter(g => g.lado === 'noivo').length;
-        const nKids = guests.filter(g => g.tipo === 'criança').length;
         const nConfirmados = guests.filter(g => g.confirmado).length;
 
         document.getElementById('stTotal').innerText = guests.length;
         document.getElementById('stConfirmados').innerText = nConfirmados;
         document.getElementById('stNoiva').innerText = nNoiva;
         document.getElementById('stNoivo').innerText = nNoivo;
-        document.getElementById('stKids').innerText = nKids;
+        document.getElementById('stKids').innerText = guests.filter(g => g.tipo === 'criança').length;
 
         const perc = guests.length > 0 ? (nConfirmados / guests.length) * 100 : 0;
         document.getElementById('progBar').style.width = perc + '%';
+
+        updateChart(nNoiva, nNoivo);
+    }
+
+    function updateChart(noiva, noivo) {
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Noiva', 'Noivo'],
+                datasets: [{
+                    data: [noiva, noivo],
+                    backgroundColor: ['#ff9a9e', '#a1c4fd']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
     }
 
     window.onload = fetchGuests;
 </script>
 </body>
 </html>
-
-
-
-
