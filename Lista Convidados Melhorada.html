@@ -126,7 +126,7 @@
 
     <div class="form-card">
         <div class="form-grid">
-            <div class="input-group"><label>Nome</label><input type="text" id="addNome"></div>
+            <div class="input-group"><label>Nome</label><input type="text" id="campo-nome-convidado"></div>
             <div class="input-group"><label>Lado</label><select id="addLado"><option value="noiva">Noiva</option><option value="noivo">Noivo</option></select></div>
             <div class="input-group"><label>Tipo</label><select id="addTipo"><option value="adulto">Adulto</option><option value="criança">Criança</option></select></div>
             <div class="input-group">
@@ -146,7 +146,7 @@
                     <option value="músico">Músico</option>
                 </select>
             </div>
-            <button class="btn-add" onclick="addGuest()">Adicionar</button>
+            <button class="btn-add" onclick="confirmarPresenca()">Adicionar</button>
         </div>
     </div>
 
@@ -361,5 +361,37 @@
     }
     render();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  // 2. Conexão com os dados das suas imagens
+  const SUPABASE_URL = 'https://vjzlfwmpalqmnkccvidj.supabase.co'
+  const SUPABASE_KEY = 'sb_publishable_Z8QxOPm2rGdjHZpXqFjosg_cuz25iRE' 
+  
+  const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+  // 3. Função para enviar o nome para a tabela "convidados" (image_c9e17b.png)
+  async function confirmarPresenca() {
+    const nomeInput = document.getElementById('campo-nome-convidado').value;
+
+    if (!nomeInput) {
+      alert("Por favor, digite seu nome.");
+      return;
+    }
+
+    // "convidados" e "nome" são os nomes exatos da sua image_c9e17b.png
+    const { error } = await _supabase
+      .from('convidados')
+      .insert([{ nome: nomeInput }])
+
+    if (error) {
+      alert('Erro ao confirmar: ' + error.message);
+    } else {
+      alert('Presença confirmada! Seu nome já está na lista.');
+      document.getElementById('campo-nome-convidado').value = '';
+    }
+  }
+</script>
 </body>
+
 </html>
