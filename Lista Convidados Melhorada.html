@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nossa lista — organização e estilo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;1,500&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #faf9f6;
+            --text-main: #2d2d2d;
+            --text-sec: #6b6b6b;
+            --noiva: #9b6b66;
+            --noivo: #5e748e;
+            --accent: #b59a7d;
+            --border: #e8e4df;
+            --padrinho-bg: #fffcf0; 
+            --padrinho-text: #8a6d3b;
+            --musico-bg: #fff5e6;
+            --musico-text: #d35400;
+            --daminha-bg: #fff0f5; /* Rosa claro */
+            --daminha-text: #c2185b;
+            --pajem-bg: #f0f8ff; /* Azul claro */
+            --pajem-text: #1976d2;
+            --check-green: #2e7d32;
+        }
+
+        body { font-family: 'Montserrat', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 60px 20px; }
+        header { text-align: center; margin-bottom: 60px; }
+        header h1 { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 500; margin: 0; font-style: italic; color: var(--text-main); }
+        header p { font-size: 0.75rem; letter-spacing: 6px; margin-top: 20px; color: var(--accent); font-weight: 600; text-transform: uppercase; }
+
+        .stats-summary { display: flex; justify-content: space-between; margin-bottom: 20px; background: #fff; padding: 30px; border: 1px solid var(--border); }
+        .stat-item { text-align: center; flex: 1; border-right: 1px solid var(--border); }
+        .stat-item:last-child { border-right: none; }
+        .stat-item span { display: block; font-family: 'Playfair Display', serif; font-size: 2.5rem; color: var(--text-main); line-height: 1; }
+        .stat-item label { color: var(--accent); font-size: 0.6rem; letter-spacing: 2px; font-weight: 600; margin-top: 10px; display: block; text-transform: uppercase; }
+
+        .progress-container { width: 100%; height: 6px; background: #eee; margin-bottom: 50px; border-radius: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--check-green); width: 0%; transition: 0.5s ease; }
+
+        .btn-pdf { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; margin-bottom: 20px; cursor: pointer; font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; display: block; margin-left: auto; }
+        .btn-pdf:hover { background: var(--accent); color: white; }
+
+        .form-card { background: #fff; padding: 30px; border: 1px solid var(--border); margin-bottom: 50px; }
+        .form-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.2fr auto; gap: 20px; align-items: end; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 0.7rem; font-weight: 600; color: var(--text-sec); letter-spacing: 1px; text-transform: uppercase; }
+        input, select { padding: 10px 0; border: none; border-bottom: 2px solid var(--border); background: transparent; font-family: inherit; font-size: 0.95rem; color: var(--text-main); }
+        input:focus { border-bottom-color: var(--accent); outline: none; }
+
+        .btn-add { background: var(--text-main); color: #fff; border: none; padding: 12px 25px; cursor: pointer; font-size: 0.7rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; transition: 0.3s; }
+        .btn-add:hover { background: var(--accent); }
+
+        .search-area { margin-bottom: 30px; display: flex; justify-content: center; }
+        .search-input { width: 300px; text-align: center; border-bottom: 1px solid var(--border); }
+
+        .tabs { display: flex; justify-content: center; gap: 50px; margin-bottom: 30px; }
+        .tab { background: none; border: none; font-family: 'Playfair Display', serif; font-size: 1.4rem; cursor: pointer; color: #ccc; transition: 0.3s; font-style: italic; padding-bottom: 8px; border-bottom: 2px solid transparent; }
+        .tab.active-noiva { color: var(--noiva); border-bottom-color: var(--noiva); }
+        .tab.active-noivo { color: var(--noivo); border-bottom-color: var(--noivo); }
+
+        .list-card { background: #fff; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 15px 20px; background: #fafafa; border-bottom: 1px solid var(--border); font-size: 0.65rem; color: var(--accent); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+        td { padding: 15px 20px; border-bottom: 1px solid #f9f9f9; font-size: 0.9rem; }
+        
+        .badge { font-size: 0.6rem; padding: 4px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-adulto { background: #f0f0f0; color: #666; }
+        .badge-crianca { background: #eef2f7; color: var(--noivo); }
+
+        /* Estilos de Destaque por Vínculo */
+        .row-padrinho { background-color: var(--padrinho-bg) !important; color: var(--padrinho-text) !important; }
+        .row-musico { background-color: var(--musico-bg) !important; color: var(--musico-text) !important; }
+        .row-daminha { background-color: var(--daminha-bg) !important; color: var(--daminha-text) !important; }
+        .row-pajem { background-color: var(--pajem-bg) !important; color: var(--pajem-text) !important; }
+
+        .confirm-col { width: 40px; text-align: center; }
+        .index-col { color: #ccc; font-weight: 600; width: 30px; font-size: 0.8rem; }
+        .name-cell { font-weight: 600; color: var(--text-main); }
+        .info-cell { color: var(--text-sec); font-size: 0.8rem; font-style: italic; }
+
+        .btn-action { background: none; border: none; cursor: pointer; font-size: 0.65rem; margin-left: 15px; color: var(--text-sec); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-action:hover { color: var(--accent); }
+        .btn-del { color: #b22222 !important; }
+
+        .charts-area { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 50px; }
+        .chart-box { background: #fff; padding: 25px; border: 1px solid var(--border); height: 280px; text-align: center; }
+        .chart-box h4 { font-size: 0.6rem; letter-spacing: 2px; color: var(--accent); margin-bottom: 20px; text-transform: uppercase; }
+
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(250, 249, 246, 0.98); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { width: 400px; background: #fff; padding: 40px; border: 1px solid var(--border); }
+
+        @media print {
+            body { background: white; }
+            .form-card, .tabs, .charts-area, .btn-pdf, .btn-action, .btn-add, .confirm-col, .search-area, .progress-container, th:last-child, td:last-child { display: none !important; }
+            .container { padding: 0; max-width: 100%; }
+            .stats-summary { border: 1px solid #eee; margin-bottom: 20px; }
+            .list-card { border: none; }
+            table { border: 1px solid #eee; }
+            th { background: #f0f0f0 !important; color: black !important; }
+            .row-padrinho { background-color: #fcf8e3 !important; -webkit-print-color-adjust: exact; }
+            .row-musico { background-color: #fff5e6 !important; -webkit-print-color-adjust: exact; }
+            .row-daminha { background-color: #fff0f5 !important; -webkit-print-color-adjust: exact; }
+            .row-pajem { background-color: #f0f8ff !important; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header><p>organizadora de convidados</p><h1>Nossa Lista de Casamento</h1></header>
+
+    <div class="stats-summary">
+        <div class="stat-item"><span id="stTotal">0</span><label>total</label></div>
+        <div class="stat-item"><span id="stConfirmados" style="color: var(--check-green)">0</span><label>confirmados</label></div>
+        <div class="stat-item"><span id="stNoiva" style="color: var(--noiva)">0</span><label>noiva</label></div>
+        <div class="stat-item"><span id="stNoivo" style="color: var(--noivo)">0</span><label>noivo</label></div>
+        <div class="stat-item"><span id="stKids" style="color: var(--accent)">0</span><label>crianças</label></div>
+    </div>
+    <div class="progress-container"><div id="progBar" class="progress-bar"></div></div>
+
+    <button class="btn-pdf" onclick="window.print()">Compartilhar / Gerar PDF</button>
+
+    <div class="form-card">
+        <div class="form-grid">
+            <div class="input-group"><label>Nome</label><input type="text" id="addNome"></div>
+            <div class="input-group"><label>Lado</label><select id="addLado"><option value="noiva">Noiva</option><option value="noivo">Noivo</option></select></div>
+            <div class="input-group"><label>Tipo</label><select id="addTipo"><option value="adulto">Adulto</option><option value="criança">Criança</option></select></div>
+            <div class="input-group">
+                <label>Vínculo</label>
+                <select id="addVinculo">
+                    <option value="">Selecione...</option>
+                    <option value="mãe">Mãe</option><option value="pai">Pai</option>
+                    <option value="avó">Avó</option>
+                    <option value="tio">Tio</option><option value="tia">Tia</option>
+                    <option value="primo">Primo</option><option value="prima">Prima</option>
+                    <option value="irmão">Irmão</option><option value="irmã">Irmã</option>
+                    <option value="sobrinho">Sobrinho</option><option value="sobrinha">Sobrinha</option>
+                    <option value="daminha">Daminha</option><option value="pajem">Pajem</option>
+                    <option value="filho">Filho</option><option value="filha">Filha</option>
+                    <option value="amigo">Amigo</option><option value="amiga">Amiga</option>
+                    <option value="padrinho">Padrinho</option><option value="madrinha">Madrinha</option>
+                    <option value="músico">Músico</option>
+                </select>
+            </div>
+            <button class="btn-add" onclick="addGuest()">Adicionar</button>
+        </div>
+    </div>
+
+    <div class="search-area">
+        <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar por nome..." onkeyup="render()">
+    </div>
+
+    <div class="tabs">
+        <button id="btnNoiva" class="tab active-noiva" onclick="setTab('noiva')">Convidados da Noiva</button>
+        <button id="btnNoivo" class="tab" onclick="setTab('noivo')">Convidados do Noivo</button>
+    </div>
+
+    <div class="list-card">
+        <table>
+            <thead>
+                <tr><th class="confirm-col">✓</th><th class="index-col">#</th><th>Nome</th><th>Categoria</th><th>Vínculo</th><th style="text-align: right;">Ações</th></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="charts-area">
+        <div class="chart-box"><h4>Proporção de Lados</h4><div style="height: 180px;"><canvas id="chartLado"></canvas></div></div>
+        <div class="chart-box"><h4>Perfil do Evento</h4><div style="height: 180px;"><canvas id="chartTipo"></canvas></div></div>
+    </div>
+</div>
+
+<div id="modal">
+    <div class="modal-content">
+        <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 25px; font-style: italic;">Editar Convidado</h2>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <input type="hidden" id="editId">
+            <div class="input-group"><label>Nome</label><input type="text" id="editNome"></div>
+            <div class="input-group"><label>Lado</label><select id="editLado"><option value="noiva">Noiva</option><option value="noivo">Noivo</option></select></div>
+            <div class="input-group"><label>Tipo</label><select id="editTipo"><option value="adulto">Adulto</option><option value="criança">Criança</option></select></div>
+            <div class="input-group">
+                <label>Vínculo</label>
+                <select id="editVinculo">
+                    <option value="mãe">Mãe</option><option value="pai">Pai</option>
+                    <option value="avó">Avó</option>
+                    <option value="tio">Tio</option><option value="tia">Tia</option>
+                    <option value="primo">Primo</option><option value="prima">Prima</option>
+                    <option value="irmão">Irmão</option><option value="irmã">Irmã</option>
+                    <option value="sobrinho">Sobrinho</option><option value="sobrinha">Sobrinha</option>
+                    <option value="daminha">Daminha</option><option value="pajem">Pajem</option>
+                    <option value="filho">Filho</option><option value="filha">Filha</option>
+                    <option value="amigo">Amigo</option><option value="amiga">Amiga</option>
+                    <option value="padrinho">Padrinho</option><option value="madrinha">Madrinha</option>
+                    <option value="músico">Músico</option>
+                </select>
+            </div>
+            <button class="btn-add" style="margin-top: 10px;" onclick="saveEdit()">Salvar</button>
+            <button class="btn-action" style="text-align: center;" onclick="document.getElementById('modal').style.display='none'">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function formatarNome(str) {
+        if (!str) return "";
+        return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+
+    const KEY_DB = 'wedding_final_v6_num';
+    let guests = JSON.parse(localStorage.getItem(KEY_DB)) || [];
+
+    let activeTab = 'noiva';
+    let chartSide, chartProfile;
+
+    function save() {
+        localStorage.setItem(KEY_DB, JSON.stringify(guests));
+        render();
+    }
+
+    function addGuest() {
+        const nome = document.getElementById('addNome').value;
+        const vinculoSelect = document.getElementById('addVinculo').value;
+        if(!nome) return;
+        guests.push({
+            id: Date.now(),
+            nome: formatarNome(nome),
+            lado: document.getElementById('addLado').value,
+            tipo: document.getElementById('addTipo').value,
+            vinculo: vinculoSelect,
+            confirmado: false
+        });
+        document.getElementById('addNome').value = '';
+        save();
+    }
+
+    function toggleConfirm(id) {
+        const g = guests.find(x => x.id === id);
+        if(g) { g.confirmado = !g.confirmado; save(); }
+    }
+
+    function addChild(parentName, lado) {
+        const childName = prompt(`Nome do filho(a) de ${parentName}:`);
+        if(childName) {
+            guests.push({
+                id: Date.now() + 1,
+                nome: formatarNome(childName),
+                lado: lado,
+                tipo: 'criança',
+                vinculo: `Filho(a) de ${parentName}`, 
+                confirmado: false
+            });
+            save();
+        }
+    }
+
+    function editGuest(id) {
+        const g = guests.find(x => x.id === id);
+        document.getElementById('editId').value = g.id;
+        document.getElementById('editNome').value = g.nome;
+        document.getElementById('editLado').value = g.lado;
+        document.getElementById('editTipo').value = g.tipo;
+        
+        const select = document.getElementById('editVinculo');
+        const v = g.vinculo ? g.vinculo.toLowerCase() : '';
+        
+        if (v.includes('filho(a) de')) {
+             if(![...select.options].some(o => o.value === g.vinculo)) {
+                 const opt = document.createElement('option');
+                 opt.value = g.vinculo;
+                 opt.text = g.vinculo;
+                 select.add(opt);
+             }
+        }
+        select.value = g.vinculo;
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    function saveEdit() {
+        const id = parseFloat(document.getElementById('editId').value);
+        const g = guests.find(x => x.id === id);
+        g.nome = formatarNome(document.getElementById('editNome').value);
+        g.lado = document.getElementById('editLado').value;
+        g.tipo = document.getElementById('editTipo').value;
+        g.vinculo = document.getElementById('editVinculo').value;
+        document.getElementById('modal').style.display = 'none';
+        save();
+    }
+
+    function deleteGuest(id) { if(confirm("Remover da lista?")) { guests = guests.filter(g => g.id !== id); save(); } }
+
+    function setTab(lado) {
+        activeTab = lado;
+        document.getElementById('btnNoiva').className = lado === 'noiva' ? 'tab active-noiva' : 'tab';
+        document.getElementById('btnNoivo').className = lado === 'noivo' ? 'tab active-noivo' : 'tab';
+        render();
+    }
+
+    function render() {
+        const table = document.getElementById('tableBody');
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        table.innerHTML = '';
+        
+        const filtered = guests.filter(g => 
+            g.lado === activeTab && 
+            g.nome.toLowerCase().includes(searchTerm)
+        );
+        
+        filtered.forEach((g, index) => {
+            const v = g.vinculo ? g.vinculo.toLowerCase() : '';
+            
+            let rowClass = '';
+            if (v === 'padrinho' || v === 'madrinha') rowClass = 'row-padrinho';
+            else if (v === 'músico') rowClass = 'row-musico';
+            else if (v === 'daminha') rowClass = 'row-daminha';
+            else if (v === 'pajem') rowClass = 'row-pajem';
+            
+            const checkIcon = g.confirmado ? '<span style="color: var(--check-green); margin-left: 10px; font-weight: bold;">✔</span>' : '';
+            const badgeClass = g.tipo === 'criança' ? 'badge-crianca' : 'badge-adulto';
+
+            table.innerHTML += `
+                <tr class="${rowClass}">
+                    <td class="confirm-col"><input type="checkbox" ${g.confirmado ? 'checked' : ''} onchange="toggleConfirm(${g.id})"></td>
+                    <td class="index-col">${index + 1}</td>
+                    <td class="name-cell">${g.nome}${checkIcon}</td>
+                    <td><span class="badge ${badgeClass}">${g.tipo}</span></td>
+                    <td class="info-cell">${g.vinculo || '—'}</td>
+                    <td style="text-align: right;">
+                        <button class="btn-action" onclick="addChild('${g.nome}', '${g.lado}')">+ Filho</button>
+                        <button class="btn-action" onclick="editGuest(${g.id})">Editar</button>
+                        <button class="btn-action btn-del" onclick="deleteGuest(${g.id})">Excluir</button>
+                    </td>
+                </tr>
+            `;
+        });
+        updateStats();
+    }
+
+    function updateStats() {
+        const nNoiva = guests.filter(g => g.lado === 'noiva').length;
+        const nNoivo = guests.filter(g => g.lado === 'noivo').length;
+        const nKids = guests.filter(g => g.tipo === 'criança').length;
+        const nConfirmados = guests.filter(g => g.confirmado).length;
+
+        document.getElementById('stTotal').innerText = guests.length;
+        document.getElementById('stConfirmados').innerText = nConfirmados;
+        document.getElementById('stNoiva').innerText = nNoiva;
+        document.getElementById('stNoivo').innerText = nNoivo;
+        document.getElementById('stKids').innerText = nKids;
+
+        const perc = guests.length > 0 ? (nConfirmados / guests.length) * 100 : 0;
+        document.getElementById('progBar').style.width = perc + '%';
+
+        if(chartSide) chartSide.destroy();
+        if(chartProfile) chartProfile.destroy();
+        chartSide = new Chart(document.getElementById('chartLado'), { type: 'pie', data: { labels: ['Noiva', 'Noivo'], datasets: [{ data: [nNoiva, nNoivo], backgroundColor: ['#9b6b66', '#5e748e'], borderWeight: 0 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+        chartProfile = new Chart(document.getElementById('chartTipo'), { type: 'doughnut', data: { labels: ['Adultos', 'Crianças'], datasets: [{ data: [guests.length - nKids, nKids], backgroundColor: ['#2d2d2d', '#b59a7d'], borderWeight: 0 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+    }
+    render();
+</script>
+</body>
+</html>
