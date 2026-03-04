@@ -208,7 +208,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // --- 1. CONFIGURAÇÃO (Chaves inseridas com precisão) ---
+    // --- 1. CONFIGURAÇÃO DO BANCO DE DADOS ---
     const SUPABASE_URL = 'https://vjzlfwmpalqmnkccvidj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_Z8QxOPm2rGdjHZpXqFjosg_cuz25iRE';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -218,20 +218,26 @@
     let chartLados = null;
     let chartPerfil = null;
 
-    // --- 2. BANCO DE DADOS (Preservando a Ordem que você listou) ---
+    // --- 2. BUSCA DE DADOS (ORDEM DE CRIAÇÃO PRESERVADA) ---
     async function fetchGuests() {
-        // .order('created_at')
-        const { data, error } = await _supabase
-            .from('convidados')
-            .select('*')
-            .order('created_at', { ascending: true });
-        
-        if (data) {
-            guests = data;
-            render();
+        try {
+            // Buscamos os dados ordenando pela data de criação (created_at) para manter sua ordem original
+            const { data, error } = await _supabase
+                .from('convidados')
+                .select('*')
+                .order('created_at', { ascending: true });
+            
+            if (error) throw error;
+            if (data) {
+                guests = data;
+                render();
+            }
+        } catch (err) {
+            console.error("Erro ao carregar dados:", err.message);
         }
     }
 
+    // --- 3. AÇÕES (ADICIONAR, FILHO, CONFIRMAR, EXCLUIR) ---
     async function addGuest() {
         const nomeInput = document.getElementById('addNome');
         if(!nomeInput.value) return;
@@ -273,13 +279,13 @@
     }
 
     async function deleteGuest(id) {
-        if(confirm("Deseja remover este convidado da lista?")) {
+        if(confirm("Tem certeza que deseja remover este convidado?")) {
             await _supabase.from('convidados').delete().eq('id', id);
             fetchGuests();
         }
     }
 
-    // --- 3. LÓGICA VISUAL (Cores dos Padrinhos e Botão Filho) ---
+    // --- 4. RENDERIZAÇÃO E CORES (LÓGICA MINUCIOSA) ---
     function setTab(lado) {
         activeTab = lado;
         document.getElementById('btnNoiva').className = lado === 'noiva' ? 'tab active-noiva' : 'tab';
@@ -298,7 +304,7 @@
         filtered.forEach((g, index) => {
             const badgeClass = g.tipo === 'criança' ? 'badge-crianca' : 'badge-adulto';
             
-            // LÓGICA DE CORES: Madrinha/Padrinho (Rosa/Azul), Músico (Amarelo), Daminha/Pajem (Laranja)
+            // LÓGICA DE CORES RESTAURADA: Aplica as classes CSS originais conforme o vínculo
             let rowClass = '';
             const v = (g.vinculo || '').toLowerCase();
             if (v.includes('padrinho') || v.includes('madrinha')) rowClass = 'row-padrinho';
@@ -308,7 +314,9 @@
 
             table.innerHTML += `
                 <tr class="${rowClass}">
-                    <td class="confirm-col"><input type="checkbox" ${g.confirmado ? 'checked' : ''} onchange="toggleConfirm(${g.id}, ${g.confirmado})"></td>
+                    <td class="confirm-col">
+                        <input type="checkbox" ${g.confirmado ? 'checked' : ''} onchange="toggleConfirm(${g.id}, ${g.confirmado})">
+                    </td>
                     <td class="index-col">${index + 1}</td>
                     <td class="name-cell">${g.nome}</td>
                     <td><span class="badge ${badgeClass}">${g.tipo}</span></td>
@@ -323,7 +331,7 @@
         updateStats();
     }
 
-    // --- 4. ESTATÍSTICAS E GRÁFICOS (Restaurados conforme o original) ---
+    // --- 5. ESTATÍSTICAS E GRÁFICOS (REATIVADOS) ---
     function updateStats() {
         const nNoiva = guests.filter(g => g.lado === 'noiva').length;
         const nNoivo = guests.filter(g => g.lado === 'noivo').length;
@@ -331,12 +339,14 @@
         const nAdults = guests.length - nKids;
         const nConfirmados = guests.filter(g => g.confirmado).length;
 
-        document.getElementById('stTotal').innerText = guests.length;
-        document.getElementById('stConfirmados').innerText = nConfirmados;
-        document.getElementById('stNoiva').innerText = nNoiva;
-        document.getElementById('stNoivo').innerText = nNoivo;
-        document.getElementById('stKids').innerText = nKids;
+        // Atualiza os números nos cards superiores
+        if(document.getElementById('stTotal')) document.getElementById('stTotal').innerText = guests.length;
+        if(document.getElementById('stConfirmados')) document.getElementById('stConfirmados').innerText = nConfirmados;
+        if(document.getElementById('stNoiva')) document.getElementById('stNoiva').innerText = nNoiva;
+        if(document.getElementById('stNoivo')) document.getElementById('stNoivo').innerText = nNoivo;
+        if(document.getElementById('stKids')) document.getElementById('stKids').innerText = nKids;
 
+        // Barra de progresso
         const perc = guests.length > 0 ? (nConfirmados / guests.length) * 100 : 0;
         const progBar = document.getElementById('progBar');
         if (progBar) progBar.style.width = perc + '%';
@@ -345,7 +355,7 @@
     }
 
     function updateCharts(noiva, noivo, adultos, criancas) {
-        // Gráfico 1: Proporção de Lados
+        // Gráfico 1: Proporção de Lados (Noiva vs Noivo)
         const ctxLados = document.getElementById('chartLados')?.getContext('2d');
         if (ctxLados) {
             if (chartLados) chartLados.destroy();
@@ -353,15 +363,43 @@
                 type: 'doughnut',
                 data: {
                     labels: ['Noiva', 'Noivo'],
-                    datasets: [{ data: [noiva, noivo], backgroundColor: ['#ff9a9e', '#a1c4fd'] }]
+                    datasets: [{
+                        data: [noiva, noivo],
+                        backgroundColor: ['#ff9a9e', '#a1c4fd']
+                    }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
             });
         }
 
-        // Gráfico 2: Perfil do Evento
+        // Gráfico 2: Perfil do Evento (Adultos vs Crianças)
         const ctxPerfil = document.getElementById('chartPerfil')?.getContext('2d');
         if (ctxPerfil) {
             if (chartPerfil) chartPerfil.destroy();
-</html>
+            chartPerfil = new Chart(ctxPerfil, {
+                type: 'pie',
+                data: {
+                    labels: ['Adultos', 'Crianças'],
+                    datasets: [{
+                        data: [adultos, criancas],
+                        backgroundColor: ['#8fd3f4', '#fbc2eb']
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+    }
 
+    // Inicialização ao carregar a página
+    window.addEventListener('DOMContentLoaded', fetchGuests);
+</script>
+</body>
+</html>
