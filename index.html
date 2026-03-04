@@ -211,28 +211,29 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    const SUPABASE_URL = 'https://vjzlfwmpalqmnkccvidj.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_Z8QxOPm2rGdjHZpXqFjosg_cuz25iRE';
+    // --- 1. CONFIGURAÇÃO (Insira seus dados aqui) ---
+    const SUPABASE_URL = 'SUA_URL_DO_SUPABASE';
+    const SUPABASE_KEY = 'SUA_CHAVE_PUBLISHABLE_AQUI';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let guests = [];
     let activeTab = 'noiva';
-    let myChart = null;
+    let chartLados = null;
+    let chartPerfil = null;
 
-    // 1. CARREGAR DADOS
+    // --- 2. FUNÇÕES DE BANCO DE DATA (Sincronizado com Supabase) ---
     async function fetchGuests() {
-        const { data, error } = await _supabase.from('convidados').select('*').order('nome', { ascending: true });
+        // .order('created_at') garante que a lista siga a ordem que você adicionou, não A-Z
+        const { data } = await _supabase.from('convidados').select('*').order('created_at', { ascending: true });
         if (data) {
             guests = data;
             render();
         }
     }
 
-    // 2. ADICIONAR CONVIDADO NORMAL
     async function addGuest() {
         const nomeInput = document.getElementById('addNome');
         if(!nomeInput.value) return;
-
         const newGuest = {
             nome: nomeInput.value,
             lado: document.getElementById('addLado').value,
@@ -240,32 +241,25 @@
             vinculo: document.getElementById('addVinculo').value,
             confirmado: false
         };
-
-        const { error } = await _supabase.from('convidados').insert([newGuest]);
-        if (!error) {
-            nomeInput.value = '';
-            fetchGuests();
-        }
+        await _supabase.from('convidados').insert([newGuest]);
+        nomeInput.value = '';
+        fetchGuests();
     }
 
-    // 3. FUNÇÃO DE ADICIONAR FILHOS (A que você sentiu falta!)
     async function addChild(parentName, parentLado) {
         const childName = prompt(`Nome do filho(a) de ${parentName}:`);
         if (!childName) return;
-
         const newChild = {
-            nome: childName,
-            lado: parentLado,
+            nome: childName, 
+            lado: parentLado, 
             tipo: 'criança',
-            vinculo: `Filho(a) de ${parentName}`,
+            vinculo: `Filho(a) de ${parentName}`, 
             confirmado: false
         };
-
-        const { error } = await _supabase.from('convidados').insert([newChild]);
-        if (!error) fetchGuests();
+        await _supabase.from('convidados').insert([newChild]);
+        fetchGuests();
     }
 
-    // 4. CONFIRMAR E EXCLUIR
     async function toggleConfirm(id, currentStatus) {
         await _supabase.from('convidados').update({ confirmado: !currentStatus }).eq('id', id);
         fetchGuests();
@@ -278,7 +272,7 @@
         }
     }
 
-    // 5. RENDERIZAÇÃO E GRÁFICOS
+    // --- 3. LÓGICA VISUAL (Cores e Abas) ---
     function setTab(lado) {
         activeTab = lado;
         document.getElementById('btnNoiva').className = lado === 'noiva' ? 'tab active-noiva' : 'tab';
@@ -295,16 +289,25 @@
         
         filtered.forEach((g, index) => {
             const badgeClass = g.tipo === 'criança' ? 'badge-crianca' : 'badge-adulto';
+            
+            // Lógica de Cores por Vínculo (Exatamente como o original)
+            let rowClass = '';
+            const v = g.vinculo ? g.vinculo.toLowerCase() : '';
+            if (v.includes('padrinho') || v.includes('madrinha')) rowClass = 'row-padrinho';
+            else if (v.includes('músico')) rowClass = 'row-musico';
+            else if (v.includes('daminha')) rowClass = 'row-daminha';
+            else if (v.includes('pajem')) rowClass = 'row-pajem';
+
             table.innerHTML += `
-                <tr>
+                <tr class="${rowClass}">
                     <td class="confirm-col"><input type="checkbox" ${g.confirmado ? 'checked' : ''} onchange="toggleConfirm(${g.id}, ${g.confirmado})"></td>
                     <td class="index-col">${index + 1}</td>
                     <td class="name-cell">${g.nome}</td>
                     <td><span class="badge ${badgeClass}">${g.tipo}</span></td>
                     <td class="info-cell">${g.vinculo || '—'}</td>
                     <td style="text-align: right; white-space: nowrap;">
-                        <button class="btn-action btn-child" onclick="addChild('${g.nome}', '${g.lado}')" title="Adicionar Filho">👶</button>
-                        <button class="btn-action btn-del" onclick="deleteGuest(${g.id})">🗑️</button>
+                        <button class="btn-action btn-child" onclick="addChild('${g.nome}', '${g.lado}')" style="margin-right: 5px;">Filho</button>
+                        <button class="btn-action btn-del" onclick="deleteGuest(${g.id})">Excluir</button>
                     </td>
                 </tr>
             `;
@@ -312,37 +315,54 @@
         updateStats();
     }
 
+    // --- 4. ESTATÍSTICAS E GRÁFICOS PIZZA ---
     function updateStats() {
         const nNoiva = guests.filter(g => g.lado === 'noiva').length;
         const nNoivo = guests.filter(g => g.lado === 'noivo').length;
+        const nKids = guests.filter(g => g.tipo === 'criança').length;
+        const nAdults = guests.length - nKids;
         const nConfirmados = guests.filter(g => g.confirmado).length;
 
         document.getElementById('stTotal').innerText = guests.length;
         document.getElementById('stConfirmados').innerText = nConfirmados;
         document.getElementById('stNoiva').innerText = nNoiva;
         document.getElementById('stNoivo').innerText = nNoivo;
-        document.getElementById('stKids').innerText = guests.filter(g => g.tipo === 'criança').length;
+        document.getElementById('stKids').innerText = nKids;
 
         const perc = guests.length > 0 ? (nConfirmados / guests.length) * 100 : 0;
         document.getElementById('progBar').style.width = perc + '%';
 
-        updateChart(nNoiva, nNoivo);
+        updateCharts(nNoiva, nNoivo, nAdults, nKids);
     }
 
-    function updateChart(noiva, noivo) {
-        const ctx = document.getElementById('myChart').getContext('2d');
-        if (myChart) myChart.destroy();
-        myChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Noiva', 'Noivo'],
-                datasets: [{
-                    data: [noiva, noivo],
-                    backgroundColor: ['#ff9a9e', '#a1c4fd']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+    function updateCharts(noiva, noivo, adultos, criancas) {
+        // Gráfico Proporção de Lados
+        const ctxLados = document.getElementById('chartLados')?.getContext('2d');
+        if (ctxLados) {
+            if (chartLados) chartLados.destroy();
+            chartLados = new Chart(ctxLados, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Noiva', 'Noivo'],
+                    datasets: [{ data: [noiva, noivo], backgroundColor: ['#ff9a9e', '#a1c4fd'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Gráfico Perfil do Evento
+        const ctxPerfil = document.getElementById('chartPerfil')?.getContext('2d');
+        if (ctxPerfil) {
+            if (chartPerfil) chartPerfil.destroy();
+            chartPerfil = new Chart(ctxPerfil, {
+                type: 'pie',
+                data: {
+                    labels: ['Adultos', 'Crianças'],
+                    datasets: [{ data: [adultos, criancas], backgroundColor: ['#8fd3f4', '#fbc2eb'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
     }
 
     window.onload = fetchGuests;
