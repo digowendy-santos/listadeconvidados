@@ -205,15 +205,12 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // --- 1. CONFIGURAÇÃO (Insira seus dados aqui) ---
-    const SUPABASE_URL = 'SUA_URL_DO_SUPABASE';
-    const SUPABASE_KEY = 'SUA_CHAVE_PUBLISHABLE_AQUI';
+    // --- 1. CONFIGURAÇÃO (Suas chaves já estão aqui, confirme se estão certas) ---
+    const SUPABASE_URL = 'https://vjzlfwmpalqmnkccvidj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_Z8QxOPm2rGdjHZpXqFjosg_cuz25iRE';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let guests = [];
@@ -221,27 +218,32 @@
     let chartLados = null;
     let chartPerfil = null;
 
-    // --- 2. FUNÇÕES DE BANCO DE DATA (Sincronizado com Supabase) ---
+    // --- 2. BUSCAR DADOS (Sem ordem alfabética - Segue a ordem de criação) ---
     async function fetchGuests() {
-        // .order('created_at') garante que a lista siga a ordem que você adicionou, não A-Z
-        const { data } = await _supabase.from('convidados').select('*').order('created_at', { ascending: true });
-        if (data) {
-            guests = data;
-            render();
-        }
+        try {
+            const { data, error } = await _supabase
+                .from('convidados')
+                .select('*')
+                .order('created_at', { ascending: true }); // Mantém a ordem que você listou
+
+            if (data) {
+                guests = data;
+                render();
+            }
+        } catch (e) { console.error("Erro ao buscar:", e); }
     }
 
+    // --- 3. ADICIONAR E FILHOS ---
     async function addGuest() {
         const nomeInput = document.getElementById('addNome');
         if(!nomeInput.value) return;
-        const newGuest = {
+        await _supabase.from('convidados').insert([{
             nome: nomeInput.value,
             lado: document.getElementById('addLado').value,
             tipo: document.getElementById('addTipo').value,
             vinculo: document.getElementById('addVinculo').value,
             confirmado: false
-        };
-        await _supabase.from('convidados').insert([newGuest]);
+        }]);
         nomeInput.value = '';
         fetchGuests();
     }
@@ -249,14 +251,10 @@
     async function addChild(parentName, parentLado) {
         const childName = prompt(`Nome do filho(a) de ${parentName}:`);
         if (!childName) return;
-        const newChild = {
-            nome: childName, 
-            lado: parentLado, 
-            tipo: 'criança',
-            vinculo: `Filho(a) de ${parentName}`, 
-            confirmado: false
-        };
-        await _supabase.from('convidados').insert([newChild]);
+        await _supabase.from('convidados').insert([{
+            nome: childName, lado: parentLado, tipo: 'criança',
+            vinculo: `Filho(a) de ${parentName}`, confirmado: false
+        }]);
         fetchGuests();
     }
 
@@ -272,7 +270,7 @@
         }
     }
 
-    // --- 3. LÓGICA VISUAL (Cores e Abas) ---
+    // --- 4. VISUAL (Abas e Cores de Padrinhos) ---
     function setTab(lado) {
         activeTab = lado;
         document.getElementById('btnNoiva').className = lado === 'noiva' ? 'tab active-noiva' : 'tab';
@@ -282,7 +280,7 @@
 
     function render() {
         const table = document.getElementById('tableBody');
-        const search = document.getElementById('searchInput').value.toLowerCase();
+        const search = document.getElementById('searchInput')?.value.toLowerCase() || "";
         table.innerHTML = '';
         
         const filtered = guests.filter(g => g.lado === activeTab && g.nome.toLowerCase().includes(search));
@@ -290,7 +288,7 @@
         filtered.forEach((g, index) => {
             const badgeClass = g.tipo === 'criança' ? 'badge-crianca' : 'badge-adulto';
             
-            // Lógica de Cores por Vínculo (Exatamente como o original)
+            // Restaura as cores automáticas (Padrinhos, Madrinhas, Músicos, etc)
             let rowClass = '';
             const v = g.vinculo ? g.vinculo.toLowerCase() : '';
             if (v.includes('padrinho') || v.includes('madrinha')) rowClass = 'row-padrinho';
@@ -306,7 +304,7 @@
                     <td><span class="badge ${badgeClass}">${g.tipo}</span></td>
                     <td class="info-cell">${g.vinculo || '—'}</td>
                     <td style="text-align: right; white-space: nowrap;">
-                        <button class="btn-action btn-child" onclick="addChild('${g.nome}', '${g.lado}')" style="margin-right: 5px;">Filho</button>
+                        <button class="btn-action btn-child" onclick="addChild('${g.nome}', '${g.lado}')">Filho</button>
                         <button class="btn-action btn-del" onclick="deleteGuest(${g.id})">Excluir</button>
                     </td>
                 </tr>
@@ -315,7 +313,7 @@
         updateStats();
     }
 
-    // --- 4. ESTATÍSTICAS E GRÁFICOS PIZZA ---
+    // --- 5. ESTATÍSTICAS E GRÁFICOS ---
     function updateStats() {
         const nNoiva = guests.filter(g => g.lado === 'noiva').length;
         const nNoivo = guests.filter(g => g.lado === 'noivo').length;
@@ -330,13 +328,15 @@
         document.getElementById('stKids').innerText = nKids;
 
         const perc = guests.length > 0 ? (nConfirmados / guests.length) * 100 : 0;
-        document.getElementById('progBar').style.width = perc + '%';
+        const progBar = document.getElementById('progBar');
+        if (progBar) progBar.style.width = perc + '%';
 
         updateCharts(nNoiva, nNoivo, nAdults, nKids);
     }
 
     function updateCharts(noiva, noivo, adultos, criancas) {
-        // Gráfico Proporção de Lados
+        if (typeof Chart === 'undefined') return; // Segurança contra erros
+
         const ctxLados = document.getElementById('chartLados')?.getContext('2d');
         if (ctxLados) {
             if (chartLados) chartLados.destroy();
@@ -346,11 +346,10 @@
                     labels: ['Noiva', 'Noivo'],
                     datasets: [{ data: [noiva, noivo], backgroundColor: ['#ff9a9e', '#a1c4fd'] }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
-        // Gráfico Perfil do Evento
         const ctxPerfil = document.getElementById('chartPerfil')?.getContext('2d');
         if (ctxPerfil) {
             if (chartPerfil) chartPerfil.destroy();
@@ -360,7 +359,7 @@
                     labels: ['Adultos', 'Crianças'],
                     datasets: [{ data: [adultos, criancas], backgroundColor: ['#8fd3f4', '#fbc2eb'] }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
     }
